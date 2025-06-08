@@ -1,0 +1,60 @@
+# === Python Core ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.egg/
+*.manifest
+*.spec
+pyvenv.cfg
+
+# === Virtual Environments ===
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# === ML/LLM Specific ===
+llama_index/_static
+_static/tiktoken_cache/*
+_static/nltk_cache/*
+*.bin
+*.h5
+*.pth
+*.pt
+qdrant_db/
+
+# === Build/Distribution ===
+bin/
+build/
+dist/
+*.egg
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# === IDE/Editor ===
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.spyderproject
+.spyproject
+.ropeproject
+
+# === Testing/Docs ===
+htmlcov/
+.tox/
+.nox/
+.coverage
+.cache
+docs/_build/
+site/
+
+# === Data/Databases ===
+*.sqlite3
+*.sqlite3-journal
+instance/
