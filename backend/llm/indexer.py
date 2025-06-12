@@ -66,5 +66,16 @@ class VectorIndexer:
             except IsADirectoryError:
                 pass
 
-    
-    
+    # Searches the index for the top three chunks of the query.
+    def search(self, query):
+        if self.index is None:
+            return {"Error": "Index not initialized."}
+
+        retriever = self.index.as_retriever(similarity_top_k=3)
+        top_nodes = retriever.retrieve(query)
+
+        if top_nodes:
+            return top_nodes
+        
+        # Returns the top nodes or a "Not Found" message if no results are found.
+        return {"Data": "Not Found"}

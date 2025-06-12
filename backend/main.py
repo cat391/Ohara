@@ -35,6 +35,13 @@ async def startup_event():
             detail=f"Initialization failed: {str(e)}"
         )
     
+@app.get("/search")
+
+async def search(q:str):
+    if not indexer:
+        return {"Error": "Indexer not initialized."}
+
+    return indexer.search(q)
 
 if __name__ == "__main__":
     # Run the FastAPI app with Uvicorn
