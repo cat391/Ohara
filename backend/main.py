@@ -1,23 +1,18 @@
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
-from qdrant_client import QdrantClient
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.vector_stores.qdrant import QdrantVectorStore
-from llama_index.readers.obsidian import ObsidianReader
 from fastapi import FastAPI, HTTPException
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from llama_index.core import Document
 from llm.indexer import VectorIndexer
 from llm.watcher import VaultWatcher
 import threading
 import uvicorn
-
+from contextlib import asynccontextmanager
+from llm.local_llm import LocalLLM
 
 app = FastAPI()
 vault_path = "/Users/cole/Desktop/Obsidian Vaults/Computer Science"
 indexer = VectorIndexer(vault_path=vault_path)  
 watcher_thread = None # Required to run file watcher independently from FastAPI
+llm = LocalLLM()  # Initialize the local LLM
 
+# TODO: Convert to lifespan function
 @app.on_event("startup")
 async def startup_event():
     global watcher_thread
@@ -34,14 +29,23 @@ async def startup_event():
             status_code=500, 
             detail=f"Initialization failed: {str(e)}"
         )
-    
+
 @app.get("/search")
 
 async def search(q:str):
     if not indexer:
         return {"Error": "Indexer not initialized."}
 
-    return indexer.search(q)
+    # Retrieve top nodes based on the query
+    nodes = indexer.search(q)
+
+    if not nodes:
+        return {"Data": "Not Found"}
+
+    # Return response from the local LLM
+    return llm.answer_question(nodes, q)
+
+
 
 if __name__ == "__main__":
     # Run the FastAPI app with Uvicorn

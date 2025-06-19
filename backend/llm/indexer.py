@@ -3,6 +3,7 @@ from qdrant_client import QdrantClient
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.readers.obsidian import ObsidianReader
+from llama_index.core import Document
 
 
 class VectorIndexer:
