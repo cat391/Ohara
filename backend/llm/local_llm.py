@@ -1,5 +1,5 @@
 from llama_cpp import Llama
-# Model is mistral-7b-instruct-v0.1.Q4_K_M.gguf/phi-2.Q4_K_M.gguf
+# Model is phi-2.Q4_K_M.gguf
 
 class LocalLLM:
     """
@@ -9,7 +9,7 @@ class LocalLLM:
     def __init__(self):
       self.llm = Llama(
         model_path="phi-2.Q4_K_M.gguf",
-        n_gpu_layers=25,      # Balanced GPU offload
+        n_gpu_layers=30,      # Balanced GPU offload
         n_threads=5,          # Reserve cores for system
         n_ctx=2048,           # Phi-2's max context
         verbose=False
@@ -69,7 +69,7 @@ class LocalLLM:
         resp = self.llm.create_completion(
             prompt=prompt,
             max_tokens=512,
-            temperature=0.3,
+            temperature=0.4,
             stop = ["\n\n", "###", "[2.", "## ", "<|endoftext|>"]
         )
     
