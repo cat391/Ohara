@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
+import MessageComponent from "./components/MessageComponent";
 
 const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
@@ -14,10 +15,15 @@ function App() {
   // run npx tauri dev to run
   // color: #A9CFD1; , darker: [#66A9AD]
   const [userText, setUserText] = useState("");
-  const [pxWidth, setPxWidth] = useState(0);
-  const spanRef = useRef<HTMLSpanElement>(null);
-  const maxPxWidth = 734;
   const pythonLaunched = useRef(false);
+  // messages stored in chatlog
+  type Message = { sender: "User" | "Ohara"; message: string };
+  const [chatlog, setChatlog] = useState<Message[]>([
+    {
+      sender: "Ohara",
+      message: "Current Directory ~ TEST, !settings to change",
+    },
+  ]);
 
   // on app load, launch the main.py file
   useEffect(() => {
@@ -29,45 +35,41 @@ function App() {
       .catch(console.error);
   }, []);
 
-  useLayoutEffect(() => {
-    if (spanRef.current && spanRef.current.offsetWidth < maxPxWidth) {
-      setPxWidth(spanRef.current.offsetWidth);
-    }
-  }, [userText]);
-
-  const handleKeyDown = (e: any): string | void => {
+  // Upon enter, search fast api and update messages
+  const handleKeyDown = async (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ): Promise<void> => {
     if (e.key !== "Enter") return;
     const userQuery = userText;
 
     setUserText("");
 
-    const response = search(userQuery);
-    console.log(response);
+    setChatlog((prev) => [...prev, { sender: "User", message: userQuery }]);
 
-    return "Complete";
+    try {
+      const response = await search(userQuery);
+      setChatlog((prev) => [...prev, { sender: "Ohara", message: response }]);
+      console.log("Search complete: ", response);
+    } catch (error) {
+      console.log("Search failed: ", error);
+    }
   };
 
   return (
     <>
       <div className="relative min-h-screen bg-black text-[#A9CFD1]">
-        <div className="absolute inset-4 border-1 border-current pointer-events-none" />
-        <div className="relative p-8">
-          <p className="text-[#66A9AD]">
-            Current Directory: test/directory, !settings to change
-          </p>
-          <span
-            ref={spanRef}
-            className="font-sans text-[#b8d2d3] invisible absolute whitespace-pre p-2"
-          >
-            {userText || " "}
-          </span>
+        <div className="absolute inset-4 border border-current p-4 overflow-y-auto">
+          {chatlog.map((m, i) => (
+            <MessageComponent key={i} sender={m.sender} message={m.message} />
+          ))}
+        </div>
+        <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
           <input
             value={userText}
             onChange={(e) => setUserText(e.target.value)}
             onKeyDown={handleKeyDown}
-            style={{ width: pxWidth }}
-            className="border-1 border-white p-0 bg-transparent text-[#b8d2d3] autofocus focus:outline-none focus:ring-2 focus:ring-[#b8d2d3]"
-          ></input>
+            className="border border-white p-2 w-72 bg-transparent text-[#b8d2d3] focus:outline-none focus:ring-2 focus:ring-[#b8d2d3] font-['JetBrains_Mono',ui-monospace,monospace] text-sm"
+          />
         </div>
       </div>
     </>
