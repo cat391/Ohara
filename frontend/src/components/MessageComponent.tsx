@@ -1,12 +1,15 @@
 type MessageProps = {
-  sender?: string;
+  sender: string;
   message: string;
+  citation?: any;
 };
 
 export default function MessageComponent({
-  sender = "Ohara",
+  sender,
   message,
+  citation,
 }: MessageProps) {
+  console.log(citation);
   return (
     <p
       className={
@@ -16,6 +19,16 @@ export default function MessageComponent({
       }
     >
       {sender}: {message}
+      {citation ? (
+        <a
+          title={citation[0].path}
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer text-[#524459] hover:text-[#bb9dc9] transition-colors"
+        >
+          [{citation[0].file_name}]
+        </a>
+      ) : null}
     </p>
   );
 }

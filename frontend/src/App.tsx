@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
 import MessageComponent from "./components/MessageComponent";
@@ -47,9 +47,12 @@ function App() {
     setChatlog((prev) => [...prev, { sender: "User", message: userQuery }]);
 
     try {
-      const response = await search(userQuery);
-      setChatlog((prev) => [...prev, { sender: "Ohara", message: response }]);
-      console.log("Search complete: ", response);
+      const { answer, sources } = await search(userQuery);
+      setChatlog((prev) => [
+        ...prev,
+        { sender: "Ohara", message: answer, citation: sources },
+      ]);
+      console.log("Search complete: ", answer, sources);
     } catch (error) {
       console.log("Search failed: ", error);
     }
@@ -60,7 +63,12 @@ function App() {
       <div className="relative min-h-screen bg-black text-[#A9CFD1]">
         <div className="absolute inset-4 border border-current p-4 overflow-y-auto">
           {chatlog.map((m, i) => (
-            <MessageComponent key={i} sender={m.sender} message={m.message} />
+            <MessageComponent
+              key={i}
+              sender={m.sender}
+              message={m.message}
+              citation={"citation" in m ? m.citation : undefined}
+            />
           ))}
         </div>
         <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
