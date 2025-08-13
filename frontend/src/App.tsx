@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
 import MessageComponent from "./components/MessageComponent";
+import { open } from "@tauri-apps/plugin-dialog";
+import { homeDir } from "@tauri-apps/api/path";
 
 const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
@@ -21,11 +23,25 @@ export async function isServerUp(): Promise<boolean> {
   return data.status === "running";
 }
 
+// opens user files for them to select the vault they want to use
+export async function pickVault(): Promise<string | null> {
+  const initial = await homeDir();
+  const selected = await open({
+    title: "Select your Obsidian vault folder",
+    directory: true,
+    multiple: false,
+    defaultPath: initial,
+  });
+  // `open` returns `string | string[] | null`
+  return typeof selected === "string" ? selected : null;
+}
+
 function App() {
   // run npx tauri dev to run
   // color: #A9CFD1; , darker: [#66A9AD]
   const [userText, setUserText] = useState("");
   const pythonLaunched = useRef(false);
+  const [vault, setVault] = useState("");
 
   // variables for server checking
   type ServerStatus = "running" | "offline";
@@ -36,22 +52,37 @@ function App() {
   const [chatlog, setChatlog] = useState<Message[]>([
     {
       sender: "Ohara",
-      message: "Current Directory ~ TEST, !settings to change",
+      message: "Current Directory ~ TEST, type `!vault` to change",
     },
   ]);
 
-  // on app load, launch the main.py file
-  useEffect(() => {
-    // python launched reference used to prevent multiple calls to start_python
+  const selectVault = async () => {
+    const vaultPath = await pickVault();
+    if (!vaultPath) return;
+
+    setVault(vaultPath);
+
     if (pythonLaunched.current) return;
     pythonLaunched.current = true;
-    invoke("start_python")
+
+    await invoke("start_python", { vaultPath })
       .then(() => console.log("Python launched"))
       .catch(console.error);
+
+    // add a fall back system if user exits out of file selector
+  };
+
+  // on app load, launch the main.py file
+  useEffect(() => {
+    // select vault
+    (async () => {
+      await selectVault();
+    })();
 
     // constant check to see if the uvicorn server is up and running
     let tries = 1;
     const checkServerStatus = setInterval(async () => {
+      if (!pythonLaunched.current) return; // do not check status if python server hasnt been invoked
       tries++;
       try {
         const status = await isServerUp();
@@ -61,7 +92,7 @@ function App() {
           clearInterval(checkServerStatus);
         }
       } catch (error) {
-        console.log("Status Check Failed: ", error);
+        // console.log("Status Check Failed: ", error);
       }
 
       // interval stops running, main.py file is likely not being launched error should be prompted
@@ -115,7 +146,6 @@ function App() {
                     citation={"citation" in m ? m.citation : undefined}
                   />
                 ))}
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
               </div>
 
               <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">

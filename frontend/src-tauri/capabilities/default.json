@@ -12,8 +12,7 @@
         {
           "name": "exec-py",
           "cmd": "python",
-          "args": ["main.py"],
-          "sidecar": false
+          "args": ["main.py"]
         }
       ]
     },
@@ -23,10 +22,10 @@
         {
           "name": "spawn-py",
           "cmd": "python",
-          "args": ["main.py"],
-          "sidecar": false
+          "args": ["main.py"]
         }
       ]
-    }
+    },
+    "dialog:default"
   ]
 }

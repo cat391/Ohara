@@ -12,9 +12,10 @@ struct PythonProcess(Mutex<Option<Child>>);
 fn start_python(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PythonProcess>,
+    vault_path: String,
 ) -> Result<(), String> {
     // Resolve main.py path
-    let path = if cfg!(debug_assertions) {
+    let script = if cfg!(debug_assertions) {
         std::path::PathBuf::from("/Users/cole/Documents/Ohara/backend/main.py")
     } else {
         app_handle
@@ -26,16 +27,15 @@ fn start_python(
 
     // Spawn Python (non-blocking)
     let child = Command::new("python3")
-        .arg(path)
+        .arg(&script)
+        .arg("--vault")
+        .arg(&vault_path)
         .spawn()
         .map_err(|e| format!("failed to launch python: {e}"))?;
 
     // Save handle (prevent double-spawn if you want)
     {
         let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-        if guard.is_some() {
-            // optional: return Err("python already running".into());
-        }
         *guard = Some(child);
     }
     Ok(())
@@ -45,6 +45,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(PythonProcess(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(generate_handler![start_python])
         .on_window_event(|window, event| {
             let should_cleanup = matches!(
