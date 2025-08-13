@@ -117,7 +117,17 @@ class LocalLLM:
 
         raise ValueError("Unrecognised node object type")
     
+    def _best_score(self, nodes):
+        try:
+            return max(self._get_score(n) for n in nodes) if nodes else 0.0
+        except Exception:
+            return 0.0
+    
     def answer_question(self, nodes, query):
+
+        if self._best_score(nodes) < 0.8:  # tune this threshold for your index
+            print("ran to low")
+            return {"answer": "I don’t have enough information in the provided context to answer.", "sources": None}
 
         chunk_texts = []
         # Retrieve text from top three nodes

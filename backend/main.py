@@ -36,10 +36,11 @@ p = argparse.ArgumentParser()
 p.add_argument("--vault")
 args = p.parse_args()
 
-vault_path = args.vault or os.environ.get("OHARA_VAULT")
-# fall back if vault not provided
-if not vault_path:
-    raise SystemExit("Vault path not provided")
+# vault_path = args.vault or os.environ.get("OHARA_VAULT")
+# # fall back if vault not provided
+# if not vault_path:
+#     raise SystemExit("Vault path not provided")
+vault_path = "/Users/cole/Desktop/Obsidian Vaults/Computer Science"
 
 print("Using vault: ", vault_path)
 
