@@ -42,6 +42,7 @@ function App() {
   const [userText, setUserText] = useState("");
   const pythonLaunched = useRef(false);
   const [vault, setVault] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // variables for server checking
   type ServerStatus = "running" | "offline";
@@ -49,12 +50,7 @@ function App() {
 
   // messages stored in chatlog
   type Message = { sender: "User" | "Ohara"; message: string };
-  const [chatlog, setChatlog] = useState<Message[]>([
-    {
-      sender: "Ohara",
-      message: "Current Directory ~ TEST, type `!vault` to change",
-    },
-  ]);
+  const [chatlog, setChatlog] = useState<Message[]>([]);
 
   const selectVault = async () => {
     const vaultPath = await pickVault();
@@ -64,6 +60,14 @@ function App() {
 
     if (pythonLaunched.current) return;
     pythonLaunched.current = true;
+
+    setChatlog((prev) => [
+      ...prev,
+      {
+        sender: "Ohara",
+        message: `Current Directory ~ ${vaultPath}, type "!vault" to change`,
+      },
+    ]);
 
     await invoke("start_python", { vaultPath })
       .then(() => console.log("Python launched"))
@@ -82,7 +86,7 @@ function App() {
     // constant check to see if the uvicorn server is up and running
     let tries = 1;
     const checkServerStatus = setInterval(async () => {
-      if (!pythonLaunched.current) return; // do not check status if python server hasnt been invoked
+      if (!pythonLaunched.current) return; // don't check status if python not launched
       tries++;
       try {
         const status = await isServerUp();
@@ -103,11 +107,24 @@ function App() {
     }, 1000);
   }, []);
 
+  // change vault
+  const handleChangeVault = () => {
+    console.log("meep :3");
+    // need to kill previous python
+  };
+
   // Upon enter, search fast api and update messages
   const handleKeyDown = async (
     e: React.KeyboardEvent<HTMLInputElement>
   ): Promise<void> => {
     if (e.key !== "Enter") return;
+
+    if (userText.toLowerCase().trim() === "!vault") {
+      handleChangeVault();
+      setUserText("");
+      return;
+    }
+
     const userQuery = userText;
 
     setUserText("");
@@ -126,38 +143,48 @@ function App() {
     }
   };
 
-  // when server starts, load up stuff
+  // auto-scroll to bottom when messages change
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chatlog, serverStatus]);
 
   return (
     <>
       <div className="relative min-h-screen bg-black text-[#A9CFD1]">
-        <div className="absolute inset-4 border border-current p-4 overflow-y-auto">
+        <div
+          ref={scrollRef}
+          className="absolute inset-4 border border-current p-4 overflow-y-auto pb-28"
+        >
           {serverStatus !== "running" ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
-            <>
-              <div>
-                {" "}
-                {chatlog.map((m, i) => (
-                  <MessageComponent
-                    key={i}
-                    sender={m.sender}
-                    message={m.message}
-                    citation={"citation" in m ? m.citation : undefined}
-                  />
-                ))}
-              </div>
-
-              <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
-                <input
-                  value={userText}
-                  onChange={(e) => setUserText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="border border-white p-2 w-72 bg-transparent text-[#b8d2d3] focus:outline-none focus:ring-2 focus:ring-[#b8d2d3] font-['JetBrains_Mono',ui-monospace,monospace] text-sm"
+            <div>
+              {chatlog.map((m, i) => (
+                <MessageComponent
+                  key={i}
+                  sender={m.sender}
+                  message={m.message}
+                  citation={"citation" in m ? m.citation : undefined}
                 />
-              </div>
-            </>
+              ))}
+            </div>
           )}
+        </div>
+
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-6">
+          <input
+            value={userText}
+            onChange={(e) => setUserText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              serverStatus !== "running"
+                ? "Starting server..."
+                : "Type a message"
+            }
+            disabled={serverStatus !== "running"}
+            className="w-full border border-white p-2 bg-black/70 backdrop-blur text-[#b8d2d3] focus:outline-none focus:ring-2 focus:ring-[#b8d2d3] font-['JetBrains_Mono',ui-monospace,monospace] text-sm rounded"
+          />
         </div>
       </div>
     </>

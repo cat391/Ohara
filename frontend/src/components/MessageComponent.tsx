@@ -9,7 +9,6 @@ export default function MessageComponent({
   message,
   citation,
 }: MessageProps) {
-  console.log(citation);
   return (
     <p
       className={
