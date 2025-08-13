@@ -76,14 +76,7 @@ function App() {
     // add a fall back system if user exits out of file selector
   };
 
-  // on app load, launch the main.py file
-  useEffect(() => {
-    // select vault
-    (async () => {
-      await selectVault();
-    })();
-
-    // constant check to see if the uvicorn server is up and running
+  const checkServerStatus = () => {
     let tries = 1;
     const checkServerStatus = setInterval(async () => {
       if (!pythonLaunched.current) return; // don't check status if python not launched
@@ -105,12 +98,26 @@ function App() {
         clearInterval(checkServerStatus);
       }
     }, 1000);
+  };
+
+  // on app load, launch the main.py file
+  useEffect(() => {
+    // select vault
+    (async () => {
+      await selectVault();
+    })();
+
+    checkServerStatus();
   }, []);
 
   // change vault
-  const handleChangeVault = () => {
-    console.log("meep :3");
-    // need to kill previous python
+  const handleChangeVault = async () => {
+    await invoke("stop_python");
+    pythonLaunched.current = false;
+    setServerStatus("offline");
+
+    await selectVault();
+    checkServerStatus();
   };
 
   // Upon enter, search fast api and update messages
@@ -154,7 +161,7 @@ function App() {
       <div className="relative min-h-screen bg-black text-[#A9CFD1]">
         <div
           ref={scrollRef}
-          className="absolute inset-4 border border-current p-4 overflow-y-auto pb-28"
+          className="absolute inset-4 border border-current p-4 overflow-y-auto pb-28 no-scrollbar"
         >
           {serverStatus !== "running" ? (
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />

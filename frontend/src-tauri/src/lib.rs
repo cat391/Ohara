@@ -3,29 +3,63 @@
 use std::{
     process::{Child, Command},
     sync::Mutex,
+    thread::sleep,
+    time::{Duration, Instant},
 };
 use tauri::{generate_handler, Manager, WindowEvent};
 
 struct PythonProcess(Mutex<Option<Child>>);
 
+fn stop_child_if_running(mut child: Child) {
+    // try graceful terminate on Unix
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{kill, Signal::SIGTERM};
+        use nix::unistd::Pid;
+        let _ = kill(Pid::from_raw(child.id() as i32), SIGTERM);
+    }
+
+    // wait a short grace period
+    let deadline = Instant::now() + Duration::from_millis(800);
+    while Instant::now() < deadline {
+        if let Ok(Some(_status)) = child.try_wait() {
+            return;
+        }
+        sleep(Duration::from_millis(50));
+    }
+
+    // hard kill + reap
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 #[tauri::command]
 fn start_python(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PythonProcess>,
-    vault_path: String,
+    vault_path: String, // JS key will be `vaultPath` (camelCase) in Tauri v2
 ) -> Result<(), String> {
-    // Resolve main.py path
+    // 1) Take any existing child out (release the lock before waiting)
+    let old_child = {
+        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+        guard.take()
+    };
+    if let Some(child) = old_child {
+        stop_child_if_running(child);
+    }
+
+    // 2) Resolve script path
     let script = if cfg!(debug_assertions) {
         std::path::PathBuf::from("/Users/cole/Documents/Ohara/backend/main.py")
     } else {
         app_handle
             .path()
             .resource_dir()
-            .map_err(|e| format!("resource_dir error: {e}"))? 
+            .map_err(|e| format!("resource_dir error: {e}"))?
             .join("backend/main.py")
     };
 
-    // Spawn Python (non-blocking)
+    // 3) Spawn new Python
     let child = Command::new("python3")
         .arg(&script)
         .arg("--vault")
@@ -33,10 +67,21 @@ fn start_python(
         .spawn()
         .map_err(|e| format!("failed to launch python: {e}"))?;
 
-    // Save handle (prevent double-spawn if you want)
+    // 4) Store handle
     {
         let mut guard = state.0.lock().map_err(|e| e.to_string())?;
         *guard = Some(child);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_python(state: tauri::State<'_, PythonProcess>) -> Result<(), String> {
+    if let Some(child) = {
+        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+        guard.take()
+    } {
+        stop_child_if_running(child);
     }
     Ok(())
 }
@@ -46,33 +91,16 @@ pub fn run() {
         .manage(PythonProcess(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(generate_handler![start_python])
+        .invoke_handler(generate_handler![start_python, stop_python])
         .on_window_event(|window, event| {
-            let should_cleanup = matches!(
-                event,
-                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
-            );
-            if should_cleanup {
-                // Put the lock and its guard in their own scope so they drop early.
-                {
+            if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
+                if let Some(child) = {
                     let state: tauri::State<PythonProcess> = window.state();
-                    if let Ok(mut guard) = state.0.lock() {
-                        if let Some(mut child) = guard.take() {
-                            // Try graceful terminate on Unix
-                            #[cfg(unix)]
-                            {
-                                use nix::sys::signal::{kill, Signal::SIGTERM};
-                                use nix::unistd::Pid;
-                                let _ = kill(Pid::from_raw(child.id() as i32), SIGTERM);
-                            }
-                            // Fallback: hard kill (portable)
-                            let _ = child.kill();
-                            // Reap the process
-                            let _ = child.wait();
-                            println!("Python process terminated on window close.");
-                        }
-                    };
-                }; 
+                    state.0.lock().ok().and_then(|mut g| g.take())
+                } {
+                    stop_child_if_running(child);
+                    println!("Python process terminated on window close.");
+                }
             }
         })
         .setup(|_| Ok(()))
