@@ -1,3 +1,5 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
+
 type MessageProps = {
   sender: string;
   message: string;
@@ -20,10 +22,20 @@ export default function MessageComponent({
       {sender}: {message}
       {citation ? (
         <a
-          title={citation[0].path}
+          title="Open in Obsidian"
           role="button"
           tabIndex={0}
           className="cursor-pointer text-[#524459] hover:text-[#bb9dc9] transition-colors"
+          onClick={async (e) => {
+            e.preventDefault();
+            try {
+              await openUrl(
+                "obsidian://open?path=" + encodeURIComponent(citation[0].path)
+              );
+            } catch (error) {
+              console.error("Failed to open Obsidian link:", error);
+            }
+          }}
         >
           [{citation[0].file_name}]
         </a>

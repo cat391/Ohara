@@ -91,6 +91,7 @@ pub fn run() {
         .manage(PythonProcess(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(generate_handler![start_python, stop_python])
         .on_window_event(|window, event| {
             if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
