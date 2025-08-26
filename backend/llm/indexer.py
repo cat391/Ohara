@@ -4,15 +4,26 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.readers.obsidian import ObsidianReader
 from llama_index.core import Document
+from pathlib import Path
 
 
 class VectorIndexer:
     def __init__(self, vault_path):
         self.vault_path = vault_path
         self.index = None
+        base = Path(__file__).resolve().parents[1] 
+        self.embed_dir = base / "models" / "bge-small-en"
+
     
     def initialize_index(self):
-        Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en")
+        if not self.embed_dir.exists():
+            raise RuntimeError(f"Embedding model folder not found: {self.embed_dir}")
+
+        Settings.embed_model = HuggingFaceEmbedding(
+            model_name=str(self.embed_dir),
+            cache_folder=str(self.embed_dir),
+            local_files_only=True,      
+        )
 
         # this disables all llms (including local), delete later
         Settings.llm = None 
@@ -71,7 +82,7 @@ class VectorIndexer:
     def search(self, query):
         if self.index is None:
             return {"Error": "Index not initialized."}
-
+        
         retriever = self.index.as_retriever(similarity_top_k=3)
         top_nodes = retriever.retrieve(query)
 

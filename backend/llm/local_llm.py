@@ -162,7 +162,7 @@ class LocalLLM:
             prompt=prompt,
             max_tokens=512,
             temperature=0.4,
-            stop = ["\n\n", "###", "[2.", "## ", "<|endoftext|>"]
+            stop = ["\n\n", "###", "[2.", "## ", "<|endoftext|>","```", "'''"]
         )
     
         # Changed this line:
@@ -170,11 +170,17 @@ class LocalLLM:
 
         # return only highest-scoring node and return one source
         sources: List[Dict[str, Optional[str]]] = []
+
         if nodes:
             best_node = max(nodes, key=self._get_score)
             info = self._extract_source_info(best_node)
             if info:
                 sources.append(info)
+
+        # strip obsidian-style [[wikilinks]] but keep the pipe
+        if "[[" in answer_text and "]]" in answer_text:
+            import re
+            answer_text = re.sub(r"\[\[(.*?)\]\]", r"\1", answer_text)
 
 
         return {
