@@ -43,6 +43,7 @@ function App() {
   const pythonLaunched = useRef(false);
   const [vault, setVault] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [responseLoading, setResponseLoading] = useState(false);
 
   // variables for server checking
   type ServerStatus = "running" | "offline";
@@ -120,7 +121,7 @@ function App() {
     checkServerStatus();
   };
 
-  // Upon enter, search fast api and update messages
+  // Upon enter, search fast api for response and update chatlog with response
   const handleKeyDown = async (
     e: React.KeyboardEvent<HTMLInputElement>
   ): Promise<void> => {
@@ -138,6 +139,8 @@ function App() {
 
     setChatlog((prev) => [...prev, { sender: "User", message: userQuery }]);
 
+    setResponseLoading(true);
+
     try {
       const { answer, sources } = await search(userQuery);
       setChatlog((prev) => [
@@ -145,8 +148,10 @@ function App() {
         { sender: "Ohara", message: answer, citation: sources },
       ]);
       console.log("Search complete: ", answer, sources);
+      setResponseLoading(false);
     } catch (error) {
       console.log("Search failed: ", error);
+      setResponseLoading(false);
     }
   };
 
@@ -175,6 +180,9 @@ function App() {
                   citation={"citation" in m ? m.citation : undefined}
                 />
               ))}
+              {responseLoading && (
+                <div className="h-3 w-3 text-[#66A9AD] animate-spin rounded-full border-2 border-current border-t-transparent" />
+              )}
             </div>
           )}
         </div>
