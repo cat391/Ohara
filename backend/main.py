@@ -1,3 +1,9 @@
+# ensures that transformers and huggingface work offline
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+
 from fastapi import FastAPI, HTTPException
 from llm.indexer import VectorIndexer
 from llm.watcher import VaultWatcher
@@ -7,11 +13,12 @@ from contextlib import asynccontextmanager
 from llm.local_llm import LocalLLM
 from fastapi.middleware.cors import CORSMiddleware 
 from pathlib import Path
-import argparse, os
+import argparse
 
 # Create correct file path to model 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "phi-2.Q4_K_M.gguf"
+
 
 app = FastAPI()
 
@@ -36,11 +43,13 @@ p = argparse.ArgumentParser()
 p.add_argument("--vault")
 args = p.parse_args()
 
-# vault_path = args.vault or os.environ.get("OHARA_VAULT")
-# # fall back if vault not provided
-# if not vault_path:
-#     raise SystemExit("Vault path not provided")
-vault_path = "/Users/cole/Desktop/Obsidian Vaults/Computer Science"
+vault_path = args.vault or os.environ.get("OHARA_VAULT")
+# fall back if vault not provided
+if not vault_path:
+    raise SystemExit("Vault path not provided")
+
+# For testing purposes, hardcoding vault path
+# vault_path = "/Users/cole/Desktop/Obsidian Vaults/Computer Science"
 
 print("Using vault: ", vault_path)
 
@@ -48,7 +57,7 @@ indexer = VectorIndexer(vault_path=vault_path)
 watcher_thread = None # Required to run file watcher independently from FastAPI
 llm = LocalLLM(MODEL_DIR)  # Initialize the local LLM
 
-# TODO: Convert to lifespan function
+
 @app.on_event("startup")
 async def startup_event():
     global watcher_thread

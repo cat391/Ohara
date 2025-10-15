@@ -41,7 +41,6 @@ function App() {
   // color: #A9CFD1; , darker: [#66A9AD]
   const [userText, setUserText] = useState("");
   const pythonLaunched = useRef(false);
-  const [vault, setVault] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [responseLoading, setResponseLoading] = useState(false);
 
@@ -56,8 +55,6 @@ function App() {
   const selectVault = async () => {
     const vaultPath = await pickVault();
     if (!vaultPath) return;
-
-    setVault(vaultPath);
 
     if (pythonLaunched.current) return;
     pythonLaunched.current = true;
@@ -93,8 +90,8 @@ function App() {
         // console.log("Status Check Failed: ", error);
       }
 
-      // interval stops running, main.py file is likely not being launched error should be prompted
-      if (tries > 30) {
+      // interval stops running (after a minute), main.py file is likely not being launched error should be prompted
+      if (tries > 60) {
         console.log("stopped process");
         clearInterval(checkServerStatus);
       }

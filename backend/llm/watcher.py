@@ -1,5 +1,6 @@
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import time
 
 class VaultWatcher:
     def __init__(self, vault_path, indexer):
@@ -16,24 +17,19 @@ class VaultWatcher:
 
         # Keep the watcher running until interrupted
         try:
-            while True:
-                pass
-        except KeyboardInterrupt:
+            while observer.is_alive():
+                time.sleep(0.5) # short buffer, so it does not starve other processes
+        finally:
             observer.stop()
-        observer.join()
+            observer.join()
     
-
-
-
-        
-
 # A handler class for monitoring changes in the Obsidian vault directory.
 class VaultHandler(FileSystemEventHandler):
     def __init__(self, indexer):
         self.indexer = indexer
 
     def on_modified(self, event):
-        self.indexer._update_index(event)
+        self.indexer._update_index(event, type_of_change="modified")
         print(f"Modified document: {event.src_path}")
 
     def on_created(self, event):

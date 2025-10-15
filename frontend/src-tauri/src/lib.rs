@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{
+    path::PathBuf,
     process::{Child, Command},
     sync::Mutex,
     thread::sleep,
@@ -9,6 +10,34 @@ use std::{
 use tauri::{generate_handler, Manager, WindowEvent};
 
 struct PythonProcess(Mutex<Option<Child>>);
+
+fn python_cmd() -> &'static str {
+    #[cfg(windows)]
+    { "python" }
+    #[cfg(not(windows))]
+    { "python3" }
+}
+
+fn find_dev_script() -> Result<PathBuf, String> {
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let candidates = [
+        "../backend/main.py",
+        "../../backend/main.py",    
+        "../../../backend/main.py",
+    ];
+    for rel in candidates {
+        let p = base.join(rel);
+        if p.exists() {
+            return Ok(p);
+        }
+    }
+    let tried = candidates
+        .iter()
+        .map(|r| base.join(r).display().to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    Err(format!("main.py not found. Tried:\n{tried}"))
+}
 
 fn stop_child_if_running(mut child: Child) {
     // try graceful terminate on Unix
@@ -37,7 +66,7 @@ fn stop_child_if_running(mut child: Child) {
 fn start_python(
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, PythonProcess>,
-    vault_path: String, // JS key will be `vaultPath` (camelCase) in Tauri v2
+    vault_path: String, 
 ) -> Result<(), String> {
     // 1) Take any existing child out (release the lock before waiting)
     let old_child = {
@@ -50,7 +79,7 @@ fn start_python(
 
     // 2) Resolve script path
     let script = if cfg!(debug_assertions) {
-        std::path::PathBuf::from("/Users/cole/Documents/Ohara/backend/main.py")
+        find_dev_script()?
     } else {
         app_handle
             .path()

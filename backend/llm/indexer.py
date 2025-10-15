@@ -5,6 +5,9 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.readers.obsidian import ObsidianReader
 from llama_index.core import Document
 from pathlib import Path
+import os
+import time
+
 
 
 class VectorIndexer:
@@ -13,7 +16,6 @@ class VectorIndexer:
         self.index = None
         base = Path(__file__).resolve().parents[1] 
         self.embed_dir = base / "models" / "bge-small-en"
-
     
     def initialize_index(self):
         if not self.embed_dir.exists():
@@ -45,38 +47,47 @@ class VectorIndexer:
     def _update_index(self, event, type_of_change = "modified"):
         if self.index is None:
             return
+
+        # Ignore directory updates early, we only want to update files
+        if getattr(event, "is_directory", False):
+            return
         
-        file_path = event.src_path # Define file_path which is the path of the file that was modified
+        file_path = os.path.abspath(event.src_path) # path of the file that was modified
         
         if type_of_change == "deleted":
             self.index.delete_ref_doc(file_path)
             print(f"Deleted document: {file_path}")
-        elif type_of_change == "created":
-            new_content = open(file_path, 'r').read()
+            return
+        
+        # tiny delay to avoid reading half-written files
+        time.sleep(0.1)
 
-            self.index.insert(Document(
-                text=new_content,
-                doc_id = file_path,
-            ))
+        # designed to read changed file safely without crashing watcher
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                new_content = f.read()
+        except (FileNotFoundError, IsADirectoryError, PermissionError):
+            return
+
+        # Build a doc with a stable id (so it can be referenced easily later) with metadata
+        p = Path(file_path)
+        doc = Document(
+            text=new_content,
+            doc_id=str(p),  
+            metadata={
+            "file_name": p.name,
+            "folder_path": str(p.parent),
+            "file_path": str(p),
+            },
+        )
+
+        if type_of_change == "created":
+            self.index.insert(doc)
             print(f"Created document: {file_path}")
-        else:
-            # Watchdog events can trigger on directories, we want to ignore those
-            if event.is_directory:
-                return
-            
-            try:
-                file_path = event.src_path
-                new_content = open(file_path, 'r').read()
 
-                self.index.update_ref_doc(Document(
-                    text=new_content,
-                    doc_id = file_path,
-                ))
-                print(f"Updated document: {file_path}")
-            except FileNotFoundError:
-                print(f"File not found: {file_path}")
-            except IsADirectoryError:
-                pass
+        else: # else, it is a modification
+            self.index.update_ref_doc(doc)
+            print(f"Updated document: {file_path}")
 
     # Searches the index for the top three chunks of the query.
     def search(self, query):

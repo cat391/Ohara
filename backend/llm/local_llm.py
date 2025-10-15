@@ -8,20 +8,17 @@ class LocalLLM:
     """
 
     def __init__(self, model_dir):
-      self.llm = Llama(
-        model_path=str(model_dir),
-        n_gpu_layers=30,      # Balanced GPU offload
-        n_threads=5,          # Reserve cores for system
-        n_ctx=2048,           # Phi-2's max context
-        verbose=False,
-        use_mmap=True,       # mmap model file into memory
-        use_mlock=True,
-    )
-    
-      print("LocalLLM initialized successfully.")
-
-
-    
+        self.llm = Llama(
+            model_path=str(model_dir),
+            n_gpu_layers=30,
+            n_threads=5,
+            n_ctx=2048,
+            verbose=False,
+            use_mmap=True,
+            use_mlock=True,
+        )
+      
+        
 
     def _inner_node(self, node_obj):
         """Return the inner 'node' whether input is NodeWithScore or a dict or already a node."""
@@ -55,8 +52,29 @@ class LocalLLM:
 
         file_name = md.get("file_name") or md.get("note_name")
         folder_path = md.get("folder_path") or md.get("path")
+        # Fallback: fills in missing file name or folder path 
+        fp = md.get("file_path")
+        if fp and (not file_name or not folder_path):
+            p = Path(fp)
+            file_name = file_name or p.name
+            folder_path = folder_path or str(p.parent)
 
-        # Fallback: try relationship SOURCE metadata if missing
+        ######################### DEBUGGING #########################
+        print(f"Extracting source info: file_name={file_name}, folder_path={folder_path}, node={node}")
+        ######################### DEBUGGING #########################
+        
+        # If it's still missing, try to use rec_doc_id
+        if (not file_name or not folder_path):
+            rdid = getattr(node, "ref_doc_id", None)
+            if rdid is None and isinstance(node, dict):
+                rdid = node.get("ref_doc_id")
+            if rdid:
+                p = Path(str(rdid))
+                file_name = file_name or p.name
+                folder_path = folder_path or str(p.parent)
+
+
+        # Final fallback, try relationship SOURCE metadata
         if (not file_name or not folder_path):
             rels = getattr(node, "relationships", None)
             if rels is None and isinstance(node, dict):
@@ -126,8 +144,8 @@ class LocalLLM:
     def answer_question(self, nodes, query):
 
         if self._best_score(nodes) < 0.8:  # tune this threshold for your index
-            print("ran to low")
-            return {"answer": "I don’t have enough information in the provided context to answer.", "sources": None}
+            print(nodes)
+            return {"answer": "I don’t have enough information in the provided vault to answer.", "sources": None}
 
         chunk_texts = []
         # Retrieve text from top three nodes

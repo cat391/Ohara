@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Ohara",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "dev.cole.ohara",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -36,8 +36,7 @@
     ],
     "resources": {
       "../../backend/models/**/*": "backend/models/",
-      "../../backend/phi-2.Q4_K_M.gguf": "backend/phi-2.Q4_K_M.gguf",
-      "../../backend/bin/**/*": "backend/bin/"
+      "../../backend/phi-2.Q4_K_M.gguf": "backend/phi-2.Q4_K_M.gguf"
     }
   }
 }
