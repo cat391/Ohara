@@ -1,6 +1,6 @@
 from llama_cpp import Llama
 from pathlib import Path
-# Model is phi-2.Q4_K_M.gguf
+# Model is Phi-3.5-mini-instruct-Q4_K_M.gguf
 
 class LocalLLM:
     """
@@ -12,7 +12,7 @@ class LocalLLM:
             model_path=str(model_dir),
             n_gpu_layers=30,
             n_threads=5,
-            n_ctx=2048,
+            n_ctx=4096,  # Phi-3.5 supports larger context
             verbose=False,
             use_mmap=True,
             use_mlock=True,
@@ -179,29 +179,29 @@ class LocalLLM:
 
 
         context = "\n".join(chunk_texts[:3])
-        prompt = f"""### Instruction:
+        prompt = f"""<|user|>
 Answer the question using ONLY information from the context below.
 If the context does not contain the answer, respond: "I don't have information about that in your notes."
 
-### Context:
+Context:
 {context}
 
-### Question:
+Question:
 {query}
 
-### Rules:
+Rules:
 - Use ONLY facts from the context. Do not use outside knowledge.
 - If the context doesn't answer the question, say "I don't have information about that in your notes."
 - Answer in 1-2 sentences maximum.
 - Do not explain or give examples unless asked.
-
-### Answer:"""  
+<|end|>
+<|assistant|>"""  
     
         resp = self.llm.create_completion(
             prompt=prompt,
             max_tokens=100,
             temperature=0.4,
-            stop = ["\n\n", "###", "[2.", "## ", "<|endoftext|>","```", "'''"]
+            stop=["<|end|>", "<|user|>", "<|endoftext|>", "\n\n"]
         )
     
         # Changed this line:

@@ -66,15 +66,6 @@ instance/
 *.safetensors
 /models/
 
-# Miniforge/Mambaforge
-Miniforge*
-Mambaforge*
-miniforge*
-mambaforge*
-
-# Specific model file
-phi-2.Q4_K_M.gguf
-Miniforge3-MacOSX-arm64.sh
 
 # Documentation
 ARCHITECTURE.md

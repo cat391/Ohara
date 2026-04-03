@@ -36,7 +36,7 @@
     ],
     "resources": {
       "../../backend/models/**/*": "backend/models/",
-      "../../backend/phi-2.Q4_K_M.gguf": "backend/phi-2.Q4_K_M.gguf"
+      "../../backend/Phi-3.5-mini-instruct-Q4_K_M.gguf": "backend/Phi-3.5-mini-instruct-Q4_K_M.gguf"
     }
   }
 }
