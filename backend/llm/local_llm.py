@@ -140,12 +140,31 @@ class LocalLLM:
             return max(self._get_score(n) for n in nodes) if nodes else 0.0
         except Exception:
             return 0.0
-    
-    def answer_question(self, nodes, query):
 
-        if self._best_score(nodes) < 0.8:  # tune this threshold for your index
-            print(nodes)
-            return {"answer": "I don’t have enough information in the provided vault to answer.", "sources": None}
+    def _clean_answer(self, text):
+        """Clean markdown artifacts from LLM output."""
+        import re
+        # Remove bold **text** or __text__
+        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+        text = re.sub(r'__(.+?)__', r'\1', text)
+        # Remove italics *text* or _text_
+        text = re.sub(r'(?<!\w)\*([^*]+)\*(?!\w)', r'\1', text)
+        text = re.sub(r'(?<!\w)_([^_]+)_(?!\w)', r'\1', text)
+        # Remove stray underscores at word boundaries
+        text = re.sub(r'(\w)_\s', r'\1 ', text)
+        text = re.sub(r'\s_(\w)', r' \1', text)
+        # Remove inline code backticks
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        # Collapse multiple spaces
+        text = re.sub(r' +', ' ', text)
+        return text.strip()
+
+    def answer_question(self, nodes, query):
+        best_score = self._best_score(nodes)
+        print(f"[DEBUG] Best similarity score: {best_score:.3f}")
+
+        if best_score < 0.845:  
+            return {"answer": "I don't have enough information in the provided vault to answer.", "sources": None}
 
         chunk_texts = []
         # Retrieve text from top three nodes
@@ -161,24 +180,26 @@ class LocalLLM:
 
         context = "\n".join(chunk_texts[:3])
         prompt = f"""### Instruction:
-        Answer the following question concisely using ONLY the provided context.
+Answer the question using ONLY information from the context below.
+If the context does not contain the answer, respond: "I don't have information about that in your notes."
 
-        ### Context:
-        {context}
+### Context:
+{context}
 
-        ### Question:
-        {query}
+### Question:
+{query}
 
-        ### Rules:
-        - Do not explain unless asked.
-        - Do not generate examples unless asked.
-        - Answer in 1-2 sentences maximum.
+### Rules:
+- Use ONLY facts from the context. Do not use outside knowledge.
+- If the context doesn't answer the question, say "I don't have information about that in your notes."
+- Answer in 1-2 sentences maximum.
+- Do not explain or give examples unless asked.
 
-        ### Answer:"""  
+### Answer:"""  
     
         resp = self.llm.create_completion(
             prompt=prompt,
-            max_tokens=512,
+            max_tokens=100,
             temperature=0.4,
             stop = ["\n\n", "###", "[2.", "## ", "<|endoftext|>","```", "'''"]
         )
@@ -195,10 +216,14 @@ class LocalLLM:
             if info:
                 sources.append(info)
 
-        # strip obsidian-style [[wikilinks]] but keep the pipe
+        # Clean markdown artifacts
+        answer_text = self._clean_answer(answer_text)
+
+        # Strip obsidian-style [[wikilinks]]
         if "[[" in answer_text and "]]" in answer_text:
             import re
-            answer_text = re.sub(r"\[\[(.*?)\]\]", r"\1", answer_text)
+            answer_text = re.sub(r"\[\[([^\]|]+)\|([^\]]+)\]\]", r"\2", answer_text)  # [[link|display]] -> display
+            answer_text = re.sub(r"\[\[([^\]]+)\]\]", r"\1", answer_text)  # [[link]] -> link
 
 
         return {
