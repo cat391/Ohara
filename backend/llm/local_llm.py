@@ -1,5 +1,6 @@
 from llama_cpp import Llama
 from pathlib import Path
+from typing import List, Dict, Optional
 # Model is Phi-3.5-mini-instruct-Q4_K_M.gguf
 
 class LocalLLM:
@@ -163,7 +164,7 @@ class LocalLLM:
         best_score = self._best_score(nodes)
         print(f"[DEBUG] Best similarity score: {best_score:.3f}")
 
-        if best_score < 0.845:  
+        if best_score < 0.80:  
             return {"answer": "I don't have enough information in the provided vault to answer.", "sources": None}
 
         chunk_texts = []
@@ -178,7 +179,7 @@ class LocalLLM:
         
 
 
-        context = "\n".join(chunk_texts[:3])
+        context = "\n".join(chunk_texts[:5])
         prompt = f"""<|user|>
 Answer the question using ONLY information from the context below.
 If the context does not contain the answer, respond: "I don't have information about that in your notes."

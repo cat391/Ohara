@@ -34,8 +34,22 @@ class VectorIndexer:
         client = QdrantClient(":memory:") # change memory, it is just for testing now
         vector_store = QdrantVectorStore(client=client, collection_name="user_notes")
 
-        # Load documents using llama index 
-        documents = ObsidianReader(self.vault_path).load_data()
+        # Load documents using llama index
+        raw_documents = ObsidianReader(self.vault_path).load_data()
+
+        # Prepend note title for better retrieval (helps match queries to document names)
+        documents = []
+        for doc in raw_documents:
+            note_name = doc.metadata.get("note_name", "")
+            if note_name:
+                new_text = f"Document: {note_name}\n\n{doc.text}"
+            else:
+                new_text = doc.text
+            documents.append(Document(
+                text=new_text,
+                doc_id=doc.doc_id,
+                metadata=doc.metadata,
+            ))
 
         # Builds the vector store index 
         self.index = VectorStoreIndex.from_documents(documents, vector_store=vector_store)
@@ -72,8 +86,8 @@ class VectorIndexer:
         # Build a doc with a stable id (so it can be referenced easily later) with metadata
         p = Path(file_path)
         doc = Document(
-            text=new_content,
-            doc_id=str(p),  
+            text=f"Document: {p.stem}\n\n{new_content}",  # Prepend note name for better retrieval
+            doc_id=str(p),
             metadata={
             "file_name": p.name,
             "folder_path": str(p.parent),
@@ -94,7 +108,7 @@ class VectorIndexer:
         if self.index is None:
             return {"Error": "Index not initialized."}
         
-        retriever = self.index.as_retriever(similarity_top_k=3)
+        retriever = self.index.as_retriever(similarity_top_k=5)
         top_nodes = retriever.retrieve(query)
 
         if top_nodes:
