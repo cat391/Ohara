@@ -45,9 +45,10 @@ class VectorIndexer:
                 new_text = f"Document: {note_name}\n\n{doc.text}"
             else:
                 new_text = doc.text
+            file_path_str = doc.metadata.get("file_path", doc.doc_id)
             documents.append(Document(
                 text=new_text,
-                doc_id=doc.doc_id,
+                doc_id=file_path_str,
                 metadata=doc.metadata,
             ))
 
