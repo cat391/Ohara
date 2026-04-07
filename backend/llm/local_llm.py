@@ -193,14 +193,14 @@ Question:
 Rules:
 - Use ONLY facts from the context. Do not use outside knowledge.
 - If the context doesn't answer the question, say "I don't have information about that in your notes."
-- Answer in 1-2 sentences maximum.
+- Be concise. Use one sentence per item when answering about multiple things.
 - Do not explain or give examples unless asked.
 <|end|>
 <|assistant|>"""  
     
         resp = self.llm.create_completion(
             prompt=prompt,
-            max_tokens=100,
+            max_tokens=200,
             temperature=0.4,
             stop=["<|end|>", "<|user|>", "<|endoftext|>", "\n\n"]
         )
