@@ -1,7 +1,7 @@
 from llama_cpp import Llama
 from pathlib import Path
 from typing import List, Dict, Optional
-# Model is Phi-3.5-mini-instruct-Q4_K_M.gguf
+# Model is LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf
 
 class LocalLLM:
     """
@@ -13,7 +13,7 @@ class LocalLLM:
             model_path=str(model_dir),
             n_gpu_layers=30,
             n_threads=5,
-            n_ctx=4096,  # Phi-3.5 supports larger context
+            n_ctx=8192,  # LFM2-1.2B-RAG supports up to 32k; 8k gives headroom without pressure
             verbose=False,
             use_mmap=True,
             use_mlock=True,
@@ -180,7 +180,10 @@ class LocalLLM:
 
 
         context = "\n".join(chunk_texts[:5])
-        prompt = f"""<|user|>
+        prompt = f"""<|im_start|>system
+You are a personal notes assistant. Answer concisely and naturally, like a knowledgeable friend reviewing the user's own notes.
+<|im_end|>
+<|im_start|>user
 Answer the question using ONLY information from the context below.
 If the context does not contain the answer, respond: "I don't have information about that in your notes."
 
@@ -195,14 +198,15 @@ Rules:
 - If the context doesn't answer the question, say "I don't have information about that in your notes."
 - Be concise. Use one sentence per item when answering about multiple things.
 - Do not explain or give examples unless asked.
-<|end|>
-<|assistant|>"""  
-    
+<|im_end|>
+<|im_start|>assistant
+"""
+
         resp = self.llm.create_completion(
             prompt=prompt,
             max_tokens=200,
-            temperature=0.4,
-            stop=["<|end|>", "<|user|>", "<|endoftext|>", "\n\n"]
+            temperature=0,
+            stop=["<|im_end|>", "<|im_start|>", "<|endoftext|>", "\n\n"]
         )
     
         # Changed this line:

@@ -36,7 +36,7 @@
     ],
     "resources": {
       "../../backend/models/**/*": "backend/models/",
-      "../../backend/Phi-3.5-mini-instruct-Q4_K_M.gguf": "backend/Phi-3.5-mini-instruct-Q4_K_M.gguf"
+      "../../backend/LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf": "backend/LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf"
     }
   }
 }

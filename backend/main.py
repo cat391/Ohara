@@ -17,7 +17,7 @@ import argparse
 
 # Create correct file path to model 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_DIR = BASE_DIR / "Phi-3.5-mini-instruct-Q4_K_M.gguf"
+MODEL_DIR = BASE_DIR / "LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf"
 
 
 app = FastAPI()
