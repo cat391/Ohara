@@ -14,9 +14,10 @@ class VectorIndexer:
     def __init__(self, vault_path):
         self.vault_path = vault_path
         self.index = None
-        base = Path(__file__).resolve().parents[1] 
+        base = Path(__file__).resolve().parents[1]
         self.embed_dir = base / "models" / "bge-small-en"
-    
+        self.db_path = base / "qdrant_db"
+
     def initialize_index(self):
         if not self.embed_dir.exists():
             raise RuntimeError(f"Embedding model folder not found: {self.embed_dir}")
@@ -24,38 +25,49 @@ class VectorIndexer:
         Settings.embed_model = HuggingFaceEmbedding(
             model_name=str(self.embed_dir),
             cache_folder=str(self.embed_dir),
-            local_files_only=True,      
+            local_files_only=True,
         )
 
-        # this disables all llms (including local), delete later
-        Settings.llm = None 
+        Settings.llm = None
 
-        # Connect to Qdrant and create a database
-        client = QdrantClient(":memory:") # change memory, it is just for testing now
+        # Connect to on-disk Qdrant (fully local/offline — writes to backend/qdrant_db/)
+        client = QdrantClient(path=str(self.db_path))
+
+        # Check if collection already exists so we can skip re-indexing on subsequent boots
+        try:
+            client.get_collection("user_notes")
+            collection_exists = True
+        except Exception:
+            collection_exists = False
+
         vector_store = QdrantVectorStore(client=client, collection_name="user_notes")
 
-        # Load documents using llama index
-        raw_documents = ObsidianReader(self.vault_path).load_data()
+        if collection_exists:
+            # Load existing index from disk — no re-embedding needed
+            self.index = VectorStoreIndex.from_vector_store(vector_store)
+            print("Loaded existing index from disk.")
+        else:
+            # First run: embed and index all vault documents
+            raw_documents = ObsidianReader(self.vault_path).load_data()
 
-        # Prepend note title for better retrieval (helps match queries to document names)
-        documents = []
-        for doc in raw_documents:
-            note_name = doc.metadata.get("note_name", "")
-            if note_name:
-                new_text = f"Document: {note_name}\n\n{doc.text}"
-            else:
-                new_text = doc.text
-            file_path_str = doc.metadata.get("file_path", doc.doc_id)
-            documents.append(Document(
-                text=new_text,
-                doc_id=file_path_str,
-                metadata=doc.metadata,
-            ))
+            # Prepend note title for better retrieval (helps match queries to document names)
+            documents = []
+            for doc in raw_documents:
+                note_name = doc.metadata.get("note_name", "")
+                if note_name:
+                    new_text = f"Document: {note_name}\n\n{doc.text}"
+                else:
+                    new_text = doc.text
+                file_path_str = doc.metadata.get("file_path", doc.doc_id)
+                documents.append(Document(
+                    text=new_text,
+                    doc_id=file_path_str,
+                    metadata=doc.metadata,
+                ))
 
-        # Builds the vector store index 
-        self.index = VectorStoreIndex.from_documents(documents, vector_store=vector_store)
-
-        print("Index initialized successfully.")
+            # Builds the vector store index
+            self.index = VectorStoreIndex.from_documents(documents, vector_store=vector_store)
+            print("Index initialized successfully.")
 
     
     # Handles updating the index based on file system events.
@@ -109,7 +121,7 @@ class VectorIndexer:
         if self.index is None:
             return {"Error": "Index not initialized."}
         
-        retriever = self.index.as_retriever(similarity_top_k=5)
+        retriever = self.index.as_retriever(similarity_top_k=3)
         top_nodes = retriever.retrieve(query)
 
         if top_nodes:

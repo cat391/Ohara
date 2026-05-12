@@ -11,7 +11,7 @@ class LocalLLM:
     def __init__(self, model_dir):
         self.llm = Llama(
             model_path=str(model_dir),
-            n_gpu_layers=30,
+            n_gpu_layers=-1,
             n_threads=5,
             n_ctx=8192,  # LFM2-1.2B-RAG supports up to 32k; 8k gives headroom without pressure
             verbose=False,
@@ -164,7 +164,7 @@ class LocalLLM:
         best_score = self._best_score(nodes)
         print(f"[DEBUG] Best similarity score: {best_score:.3f}")
 
-        if best_score < 0.80:  
+        if best_score < 0.65:
             return {"answer": "I don't have enough information in the provided vault to answer.", "sources": None}
 
         chunk_texts = []
@@ -179,7 +179,7 @@ class LocalLLM:
         
 
 
-        context = "\n".join(chunk_texts[:5])
+        context = "\n".join(chunk_texts[:3])
         prompt = f"""<|im_start|>system
 You are a personal notes assistant. Answer concisely and naturally, like a knowledgeable friend reviewing the user's own notes.
 <|im_end|>
