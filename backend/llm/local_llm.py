@@ -212,14 +212,13 @@ Rules:
         # Changed this line:
         answer_text = resp["choices"][0]["text"].strip()  # Now accesses "text" instead of "message"
 
-        # return only highest-scoring node and return one source
         sources: List[Dict[str, Optional[str]]] = []
-
-        if nodes:
-            best_node = max(nodes, key=self._get_score)
-            info = self._extract_source_info(best_node)
-            if info:
-                sources.append(info)
+        seen_paths: set = set()
+        for node in sorted(nodes, key=self._get_score, reverse=True):
+            info = self._extract_source_info(node)
+            if info and info["path"] not in seen_paths:
+                seen_paths.add(info["path"])
+                sources.append({**info, "score": round(self._get_score(node), 3)})
 
         # Clean markdown artifacts
         answer_text = self._clean_answer(answer_text)
