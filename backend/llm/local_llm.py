@@ -60,6 +60,10 @@ class LocalLLM:
             file_name = file_name or p.name
             folder_path = folder_path or str(p.parent)
 
+        ######################### DEBUGGING #########################
+        print(f"Extracting source info: file_name={file_name}, folder_path={folder_path}, node={node}")
+        ######################### DEBUGGING #########################
+        
         # If it's still missing, try to use rec_doc_id
         if (not file_name or not folder_path):
             rdid = getattr(node, "ref_doc_id", None)
@@ -158,6 +162,7 @@ class LocalLLM:
 
     def answer_question(self, nodes, query):
         best_score = self._best_score(nodes)
+        print(f"[DEBUG] Best similarity score: {best_score:.3f}")
 
         if best_score < 0.65:
             return {"answer": "I don't have enough information in the provided vault to answer.", "sources": None}
@@ -166,10 +171,13 @@ class LocalLLM:
         # Retrieve text from top three nodes
         for n in nodes:
             try:
+                print(f"Processing node: {n}")
                 chunk_texts.append(self._retrieve_node_text(n))
             except ValueError:
                 # Skip nodes we can’t decode instead of crashing the whole call
                 continue
+        
+
 
         context = "\n".join(chunk_texts[:3])
         prompt = f"""<|im_start|>system

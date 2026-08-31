@@ -22,12 +22,13 @@ MODEL_DIR = BASE_DIR / "LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf"
 
 app = FastAPI()
 
-# CORS Settings
-cors_env = os.environ.get("OHARA_CORS_ORIGINS")
-if cors_env:
-    origins = [o.strip() for o in cors_env.split(",")]
-else:
-    origins = ["*"]
+# CORS Settings 
+origins = [
+    "http://localhost:5173",  
+    "http://127.0.0.1:5173",
+    "tauri://localhost",       
+    "http://tauri.localhost",  
+]
 
 app.add_middleware(
     CORSMiddleware,
