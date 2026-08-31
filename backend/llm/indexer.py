@@ -11,12 +11,13 @@ import time
 
 
 class VectorIndexer:
-    def __init__(self, vault_path):
+    def __init__(self, vault_path, embed_dir, db_path):
         self.vault_path = vault_path
         self.index = None
-        base = Path(__file__).resolve().parents[1]
-        self.embed_dir = base / "models" / "bge-small-en"
-        self.db_path = base / "qdrant_db"
+        # Paths are injected (resolved by model_fetch) — a frozen binary can't
+        # use __file__-relative paths for models or the writable qdrant dir.
+        self.embed_dir = Path(embed_dir)
+        self.db_path = Path(db_path)
 
     def initialize_index(self):
         if not self.embed_dir.exists():

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "npm run build:backend && tauri build",
+    "build:backend": "bash ../scripts/build-backend.sh"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",

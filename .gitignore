@@ -7,6 +7,7 @@ __pycache__/
 .egg/
 *.manifest
 *.spec
+!ohara-backend.spec
 pyvenv.cfg
 
 # === Virtual Environments ===
@@ -70,3 +71,6 @@ instance/
 # Documentation
 ARCHITECTURE.md
 HOW_TO_RUN.md
+
+# Claude folder
+.claude/

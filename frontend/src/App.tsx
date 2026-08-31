@@ -8,23 +8,56 @@ import { homeDir } from "@tauri-apps/api/path";
 const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 // interacts with fast api to provide llm response to user's question
-export async function search(q: string) {
+async function search(q: string) {
   const res = await fetch(`${API}/search?q=` + encodeURIComponent(q));
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-// function to check status of uvicorn server
-export async function isServerUp(): Promise<boolean> {
-  const res = await fetch(`${API}/status`);
-  if (!res.ok) return false;
+// startup phases reported by the backend's /status endpoint
+type ServerPhase =
+  | "offline"
+  | "starting"
+  | "downloading"
+  | "loading"
+  | "indexing"
+  | "running"
+  | "error";
+type ServerStatus = { phase: ServerPhase; progress: number; detail: string };
 
-  const data = await res.json();
-  return data.status === "running";
+const OFFLINE: ServerStatus = { phase: "offline", progress: 0, detail: "" };
+
+// function to check status of uvicorn server
+async function getServerStatus(): Promise<ServerStatus | null> {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      phase: data.status as ServerPhase,
+      progress: data.progress ?? 0,
+      detail: data.detail ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function phaseLabel(status: ServerStatus): string {
+  switch (status.phase) {
+    case "downloading":
+      return `Downloading AI models (one-time) — ${Math.round(status.progress * 100)}%`;
+    case "loading":
+      return "Loading language model…";
+    case "indexing":
+      return "Indexing your vault…";
+    default:
+      return "Starting Ohara…";
+  }
 }
 
 // opens user files for them to select the vault they want to use
-export async function pickVault(): Promise<string | null> {
+async function pickVault(): Promise<string | null> {
   const initial = await homeDir();
   const selected = await open({
     title: "Select your Obsidian vault folder",
@@ -45,11 +78,11 @@ function App() {
   const [responseLoading, setResponseLoading] = useState(false);
 
   // variables for server checking
-  type ServerStatus = "running" | "offline";
-  const [serverStatus, setServerStatus] = useState<ServerStatus>("offline");
+  const [serverStatus, setServerStatus] = useState<ServerStatus>(OFFLINE);
 
   // messages stored in chatlog
-  type Message = { sender: "User" | "Ohara"; message: string };
+  type Source = { file_name: string; path: string; score?: number };
+  type Message = { sender: "User" | "Ohara"; message: string; citation?: Source[] };
   const [chatlog, setChatlog] = useState<Message[]>([]);
 
   const selectVault = async () => {
@@ -75,25 +108,17 @@ function App() {
   };
 
   const checkServerStatus = () => {
-    let tries = 1;
-    const checkServerStatus = setInterval(async () => {
+    // Poll until the backend reports running or error. No try cap: the
+    // first-run model download takes minutes and /status reports its progress.
+    const interval = setInterval(async () => {
       if (!pythonLaunched.current) return; // don't check status if python not launched
-      tries++;
-      try {
-        const status = await isServerUp();
-        if (status) {
-          console.log("Server Running");
-          setServerStatus("running");
-          clearInterval(checkServerStatus);
-        }
-      } catch (error) {
-        // console.log("Status Check Failed: ", error);
-      }
 
-      // interval stops running (after a minute), main.py file is likely not being launched error should be prompted
-      if (tries > 60) {
-        console.log("stopped process");
-        clearInterval(checkServerStatus);
+      const status = await getServerStatus();
+      if (!status) return; // server not up yet, keep polling
+
+      setServerStatus(status);
+      if (status.phase === "running" || status.phase === "error") {
+        clearInterval(interval);
       }
     }, 1000);
   };
@@ -112,7 +137,7 @@ function App() {
   const handleChangeVault = async () => {
     await invoke("stop_python");
     pythonLaunched.current = false;
-    setServerStatus("offline");
+    setServerStatus(OFFLINE);
 
     await selectVault();
     checkServerStatus();
@@ -165,8 +190,27 @@ function App() {
           ref={scrollRef}
           className="absolute inset-4 border border-current p-4 overflow-y-auto pb-28 no-scrollbar"
         >
-          {serverStatus !== "running" ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {serverStatus.phase !== "running" ? (
+            serverStatus.phase === "error" ? (
+              <p className="text-sm font-['JetBrains_Mono',ui-monospace,monospace]">
+                Something went wrong starting Ohara: {serverStatus.detail}
+              </p>
+            ) : (
+              <div className="flex flex-col items-start gap-3">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <p className="text-sm font-['JetBrains_Mono',ui-monospace,monospace]">
+                  {phaseLabel(serverStatus)}
+                </p>
+                {serverStatus.phase === "downloading" && (
+                  <div className="w-full max-w-sm h-2 border border-current rounded overflow-hidden">
+                    <div
+                      className="h-full bg-[#66A9AD] transition-all duration-500"
+                      style={{ width: `${Math.round(serverStatus.progress * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )
           ) : (
             <div>
               {chatlog.map((m, i) => (
@@ -174,7 +218,7 @@ function App() {
                   key={i}
                   sender={m.sender}
                   message={m.message}
-                  citation={"citation" in m ? m.citation : undefined}
+                  citation={m.citation}
                 />
               ))}
               {responseLoading && (
@@ -190,11 +234,11 @@ function App() {
             onChange={(e) => setUserText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              serverStatus !== "running"
+              serverStatus.phase !== "running"
                 ? "Starting server..."
                 : "Type a message"
             }
-            disabled={serverStatus !== "running"}
+            disabled={serverStatus.phase !== "running"}
             className="w-full border border-white p-2 bg-black/70 backdrop-blur text-[#b8d2d3] focus:outline-none focus:ring-2 focus:ring-[#b8d2d3] font-['JetBrains_Mono',ui-monospace,monospace] text-sm rounded"
           />
         </div>

@@ -34,9 +34,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../../backend/models/**/*": "backend/models/",
-      "../../backend/LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf": "backend/LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf"
-    }
+    "externalBin": [
+      "binaries/ohara-backend"
+    ]
   }
 }
