@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PyInstaller sidecar output (built by scripts/build-backend.sh)
+src-tauri/binaries/

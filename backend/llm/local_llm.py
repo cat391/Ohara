@@ -1,4 +1,5 @@
 from llama_cpp import Llama
+import os
 from pathlib import Path
 from typing import List, Dict, Optional
 # Model is LiquidAI_LFM2-1.2B-RAG-Q4_K_M.gguf
@@ -14,7 +15,8 @@ class LocalLLM:
             n_gpu_layers=-1,
             n_threads=5,
             n_ctx=8192,  # LFM2-1.2B-RAG supports up to 32k; 8k gives headroom without pressure
-            verbose=False,
+            # OHARA_LLM_VERBOSE=1 surfaces llama.cpp logs (Metal init, timings) for debugging
+            verbose=os.environ.get("OHARA_LLM_VERBOSE") == "1",
             use_mmap=True,
             use_mlock=True,
         )
